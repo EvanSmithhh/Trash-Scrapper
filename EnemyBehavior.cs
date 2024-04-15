@@ -33,6 +33,7 @@ public class EnemyBehavior : MonoBehaviour
     {
         if (health <= 0)
         {
+            agent.enabled = false;
             Destroy(gameObject);
         }
 

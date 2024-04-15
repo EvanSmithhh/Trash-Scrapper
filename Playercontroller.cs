@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using UnityEditor;
-using UnityEditor.PackageManager;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
@@ -20,6 +19,7 @@ public class Playercontroller : MonoBehaviour
 
     private bool canShoot = true;
     private bool canReload = true;
+    private bool crouched = false;
     public int harpoonChamb = 2;
     private int maxChamb = 2;
     public Text ammoCount;
@@ -36,8 +36,6 @@ public class Playercontroller : MonoBehaviour
     private float baseAcc = 15000.0f;
     public float jumpHeight = 10;
     private bool isInAir = false;
-    private float airSpeed = 500;
-    private bool canStand = true;
 
     private CapsuleCollider plCollider;
     private float baseHeight;
@@ -68,8 +66,7 @@ public class Playercontroller : MonoBehaviour
             }
         }
 
-        // Check if an object above the player is blocking their ability to stand up
-        canStand = !Physics.Raycast(transform.position, Vector3.up, playerHeight * 0.5f);
+        
 
         // Shoots the harpoon on left-click
         if (Input.GetKeyDown(KeyCode.Mouse0) && canShoot && harpoonChamb > 0)
@@ -171,18 +168,24 @@ public class Playercontroller : MonoBehaviour
         // Cut the player's size in half and make them slower while crouched
         if (Input.GetKeyDown(KeyCode.LeftControl))
         {
-            transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
-            playerRb.AddForce(Vector3.down * 10f, ForceMode.Impulse);
-            baseAcc *= 0.5f;
-            baseSpeed *= 0.5f;
+            if (!crouched)
+            {
+                crouched = true;
+                transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
+                playerRb.AddForce(Vector3.down * 10f, ForceMode.Impulse);
+                baseAcc *= 0.5f;
+                baseSpeed *= 0.5f;
+            }
+            else
+            {
+                crouched = false;
+                transform.localScale = new Vector3(transform.localScale.x, baseHeight, transform.localScale.z);
+                baseAcc *= 2f;
+                baseSpeed *= 2f;
+            }
         }
 
-        if (Input.GetKeyUp(KeyCode.LeftControl))
-        { 
-            transform.localScale = new Vector3(transform.localScale.x, baseHeight, transform.localScale.z);
-            baseAcc *= 2f;
-            baseSpeed *= 2f;  
-        }
+        
 
 
         MovePlayer();
