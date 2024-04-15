@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 public class HarpoonShot : MonoBehaviour
 {
 
-    public float speed = 5.0f;
+    public float speed = 20.0f;
     public float maxSpeed = 20.0f;
 
     private Rigidbody rb;

@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using UnityEditor;
+using UnityEditor.PackageManager;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class Playercontroller : MonoBehaviour
 {
@@ -15,12 +18,24 @@ public class Playercontroller : MonoBehaviour
     public LayerMask whatIsGround;
     private bool grounded;
 
+    private bool canShoot = true;
+    private bool canReload = true;
+    public int harpoonChamb = 2;
+    private int maxChamb = 2;
+    public Text ammoCount;
+    public Text ammoCountMax;
+    
+    private bool gameOver = false;
+    public static int health = 100;
+    public Text healthCount;
+
     private bool jumpOff = false;
     public float groundDrag;
     public float speed = 15000.0f;
     private float crouchYScale = 0.5f;
     private float baseAcc = 15000.0f;
     public float jumpHeight = 10;
+    private bool isInAir = false;
     private float airSpeed = 500;
     private bool canStand = true;
 
@@ -35,6 +50,7 @@ public class Playercontroller : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        health = 100;
         playerRb = GetComponent<Rigidbody>();
         plCollider = GetComponent<CapsuleCollider>();
         baseHeight = transform.localScale.y;
@@ -43,17 +59,73 @@ public class Playercontroller : MonoBehaviour
     private void Update()
     {
 
+        // Decrease player air control
+        if (isInAir)
+        {
+            if (maxSpeed <= baseSpeed * 1.5 && playerRb.velocity.magnitude <= maxSpeed)
+            {
+                maxSpeed = playerRb.velocity.magnitude;
+            }
+        }
+
         // Check if an object above the player is blocking their ability to stand up
         canStand = !Physics.Raycast(transform.position, Vector3.up, playerHeight * 0.5f);
 
         // Shoots the harpoon on left-click
-        if (Input.GetKeyDown(KeyCode.Mouse0))
+        if (Input.GetKeyDown(KeyCode.Mouse0) && canShoot && harpoonChamb > 0)
         {
+            RaycastHit hit;
+            if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out hit))
+            {
+                Vector3 aimPoint = hit.point;
+                shotOrigin.LookAt(aimPoint);
+            }
+
             ShootHarpoon();
+
+            harpoonChamb -= 1;
+
+            canShoot = false;
+            StartCoroutine("ShotCooldown");
+        }
+
+        // Display counters
+        ammoCount.text = harpoonChamb.ToString();
+        ammoCountMax.text = maxChamb.ToString();
+
+        healthCount.text = health.ToString();
+        healthCount.color = new Color((125 - health)/100f, health/100f, 0);
+
+        // Health bottom cap
+        if (health <= 0)
+        {
+            health = 0;
+            gameOver = true;
+        }
+
+        // Send player to death screen when killed
+        if (gameOver == true)
+        {
+            SceneManager.LoadScene("GameOver");
+        }
+
+        // Reload the weapon if ammo hits zero or if r key is pressed
+        if (harpoonChamb < 1 || Input.GetKeyDown(KeyCode.R) && canReload)
+        {
+            canShoot = false;
+            harpoonChamb = 0;
+            canReload = false;
+            StartCoroutine("HarpoonReload");
         }
 
         // Give the player friction while touching the ground
         grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround);
+        Debug.DrawRay(transform.position, Vector3.down, Color.green);
+        grounded = Physics.Raycast(new Vector3(transform.position.x + 0.4f, transform.position.y, transform.position.z + 0.36f), Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround) ||
+            Physics.Raycast(new Vector3(transform.position.x + 0.4f, transform.position.y, transform.position.z - 0.4f), Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround) ||
+            Physics.Raycast(new Vector3(transform.position.x + 0.4f, transform.position.y, transform.position.z - 0.4f), Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround) ||
+            Physics.Raycast(new Vector3(transform.position.x - 0.46f, transform.position.y, transform.position.z - 0.4f), Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround) ||
+            Physics.Raycast(new Vector3(transform.position.x - 0.46f, transform.position.y, transform.position.z + 0.36f), Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround);
 
         if (grounded)
         {
@@ -76,9 +148,12 @@ public class Playercontroller : MonoBehaviour
             }
         }
 
+        // Set the player's movement speed while on the ground
         if (grounded)
         {
             speed = baseAcc;
+            maxSpeed = baseSpeed;
+            isInAir = false;
         }
 
         // Sprint while shift is held
@@ -160,7 +235,28 @@ public class Playercontroller : MonoBehaviour
     IEnumerator SlowPlayer()
     {
         yield return new WaitForSeconds(0.4f);
-        speed = baseAcc * 0.25f;
+        speed = baseAcc * 0.35f;
+        isInAir = true;
+    }
+
+    IEnumerator ShotCooldown()
+    {
+        yield return new WaitForSeconds(0.3f);
+        canShoot = true;
+    }
+    
+    IEnumerator HarpoonReload()
+    {
+        yield return new WaitForSeconds(0.5f);
+        harpoonChamb = maxChamb;
+        StartCoroutine("ReloadCooldown");
+    }
+
+    IEnumerator ReloadCooldown()
+    {
+        yield return new WaitForSeconds(0.5f);
+        canShoot = true;
+        canReload = true;
     }
 
     private void ShootHarpoon()
@@ -168,6 +264,7 @@ public class Playercontroller : MonoBehaviour
         // Create a harpoon at the shot origin
         Instantiate(harpoon, shotOrigin.position, shotOrigin.rotation);
     }
+
 
 }
 
